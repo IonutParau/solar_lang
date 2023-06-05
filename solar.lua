@@ -8,6 +8,8 @@ require("src.parser")
 Lexer:setState("shit.solar", [[
 module Test;
 module Test.Submodule;
+
+fun Test.Submodule.Method(a, b) = a + b;
 ]])
 
 Parser:grabTokenStream(Lexer)

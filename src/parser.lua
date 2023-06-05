@@ -54,16 +54,21 @@ end
 
 ---@class TypeInfo
 ---@field path string[]
----@field generics {generic: GenericDefinition|nil, typeInfo: TypeInfo|nil}[]
+---@field generics TypeDefinition[]
 
 ---@class GenericDefinition
 ---@field name string
 ---@field constraints AST[]
 
+---@class TypeDefinition
+---@field generic GenericDefinition|nil
+---@field typeInfo TypeInfo|nil
+
 ---@class FunctionDefinition
 ---@field path string[]
----@field arguments {name: string, generic: GenericDefinition|nil, typeInfo: TypeInfo|nil}[]
----@field returnType {generic: GenericDefinition|nil, typeInfo: TypeInfo|nil}
+---@field arguments {name: string, definition: TypeDefinition}[]
+---@field returnType TypeDefinition
+---@field body AST
 
 ---@return AST
 function Parser:topLevelStatement()
@@ -73,6 +78,7 @@ function Parser:topLevelStatement()
     ---@type string[]
     local path = {}
     local nameToken = self:nextToken()
+    assert(nameToken.type == "identifier", "<identifier> expected")
     table.insert(path, nameToken.content)
 
     while self:peekToken().type == "." do
@@ -93,8 +99,35 @@ function Parser:topLevelStatement()
     while self:peekToken().type == "." do
       self:nextToken()
       local subnameToken = self:nextToken()
+      assert(subnameToken.type == "identifier", "<identifier> expected")
       table.insert(path, subnameToken.content)
     end
+
+    assert(self:nextToken().type == "(", "( expected")
+
+    ---@type {name: string, definition: TypeDefinition}[]
+    local args = {}
+
+    while true do
+      if self:peekToken().type == ")" then
+        self:nextToken()
+        break
+      elseif self:peekToken().type == "," then
+        self:nextToken()
+        local name = self:nextToken()
+        assert(name.type == "identifier", "<identifier> expected")
+
+        --TODO: Add support for types once parser can parse types.
+        table.insert(args, { name = name.content, definition = {} })
+      elseif #args == 0 and self:peekToken().type == "identifier" then
+        local name = self:nextToken()
+        table.insert(args, { name = name.content, definition = {} })
+      else
+        error(", or ) expected")
+      end
+    end
+
+    return AST("functionDefinition", { path = path, arguments = args, returnType = {}, body = nil }, {}, token.source)
   end
 
   return AST("invalid", token.content, {}, token.source)
