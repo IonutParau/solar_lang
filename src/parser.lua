@@ -4,6 +4,17 @@
 Parser = {}
 
 ---@param lexer Lexer
+---@return Parser
+function Parser:newFromLexer(lexer)
+  ---@type Parser
+  local parser = setmetatable({}, { __index = self })
+
+  parser:grabTokenStream(lexer)
+
+  return parser
+end
+
+---@param lexer Lexer
 function Parser:grabTokenStream(lexer)
   local tokens = {}
 
@@ -35,8 +46,9 @@ function Parser:nextToken()
   return token or self.tokenStream[#self.tokenStream]
 end
 
+---@param curdir string
 ---@return AST[]
-function Parser:parseCode()
+function Parser:parseCode(curdir)
   ---@type AST[]
   local asts = {}
 
@@ -44,12 +56,200 @@ function Parser:parseCode()
     if self:peekToken().type == ";" then
       self:nextToken()
     else
-      print(self:peekToken().type)
-      table.insert(asts, self:topLevelStatement())
+      table.insert(asts, self:topLevelStatement(curdir))
     end
   end
 
   return asts
+end
+
+---@return AST
+function Parser:statement()
+
+end
+
+---@param op Token
+---@return boolean, number, number
+function Parser:infix_bindig_power(op)
+  if op.type == "+" or op.type == "-" then
+    return true, 95, 96
+  end
+
+  if op.type == "*" or op.type == "/" then
+    return true, 97, 98
+  end
+
+  if op.type == "^" then
+    return true, 100, 101
+  end
+
+  if op.type == ".." then
+    return true, 93, 94
+  end
+
+  if op.type == "<" then
+    return true, 91, 92
+  end
+
+  if op.type == ">" then
+    return true, 89, 90
+  end
+
+  if op.type == "<=" then
+    return true, 89, 90
+  end
+
+  if op.type == ">=" then
+    return true, 89, 90
+  end
+
+  if op.type == "~=" then
+    return true, 89, 90
+  end
+
+  if op.type == "==" then
+    return true, 89, 90
+  end
+
+  if op.type == "and" then
+    return true, 87, 88
+  end
+
+  if op.type == "or" then
+    return true, 85, 86
+  end
+
+  return false, 0, 0
+end
+
+---@param op Token
+---@return boolean, number
+function Parser:prefix_binding_power(op)
+  if op.type == "-" then
+    return true, 99
+  end
+
+  if op.type == "not" then
+    return true, 99
+  end
+
+  return false, 0
+end
+
+---@param str string
+---@return number
+function Parser:parse_number(str)
+  local n = 0
+  local a = 1
+  local fraction = false
+
+  for i = 1, #str do
+    local c = str:sub(i, i)
+
+    if c == "." then
+      fraction = true
+    else
+      local digit = c:byte() - string.byte('0')
+      if fraction then
+        a = a / 10
+        n = n + digit * a
+      else
+        n = n * 10
+        n = n + digit
+      end
+    end
+  end
+
+  return n
+end
+
+---@param min_bp integer|nil
+---@return AST
+function Parser:expression(min_bp)
+  min_bp = min_bp or 0
+  local token = self:nextToken()
+
+  ---@type AST
+  local lhs
+
+  if token.type == "string-literal" then
+    lhs = AST("const-string", token.content, {}, token.source)
+  end
+
+  if token.type == "number-literal" then
+    lhs = AST("const-number", self:parse_number(token.content), {}, token.source)
+  end
+
+  if token.type == "true" then
+    lhs = AST("const-bool", true, {}, token.source)
+  end
+
+  if token.type == "false" then
+    lhs = AST("const-bool", false, {}, token.source)
+  end
+
+  if token.type == "identifier" then
+    lhs = AST("var", token.content, {}, token.source)
+  end
+
+  -- Prefix Operators
+  local is_prefix_op, op_power = self:prefix_binding_power(token)
+  if is_prefix_op then
+    local rhs = self:expression(op_power)
+    lhs = AST("prefix-op", token.type, { rhs }, token.source)
+  end
+
+  if not lhs then
+    return AST("invalid", token, {}, token.source)
+  end
+
+  -- Index, Self-Index and Function Calls
+
+  -- Other Operators
+
+  while true do
+    local op = self:peekToken()
+    if op.type == "eof" then
+      break
+    end
+
+    -- infix
+    local is_infix, l_bp, r_bp = self:infix_bindig_power(op)
+    if is_infix then
+      if l_bp < min_bp then
+        break
+      end
+
+      self:nextToken()
+      local rhs = self:expression(r_bp)
+
+      lhs = AST("op_use", op.type, { lhs, rhs }, op.source)
+    else
+      break
+    end
+  end
+
+  return lhs
+end
+
+---@param curdir string
+---@param path string
+---@return string, string
+function Parser:resolve_comptime_paths(curdir, path)
+  local nextdir = ""
+  local nextpath = path
+
+  if #curdir == 0 then
+    nextpath = path
+  end
+
+  for i = 1, #nextpath do
+    if nextpath:sub(i, i) == "/" then
+      nextdir = nextpath:sub(1, i - 1)
+    end
+  end
+
+  return nextdir, nextpath
 end
 
 ---@class TypeInfo
@@ -68,10 +268,10 @@ end
 ---@field path string[]
 ---@field arguments {name: string, definition: TypeDefinition}[]
 ---@field returnType TypeDefinition
----@field body AST
 
+---@param curdir string
 ---@return AST
-function Parser:topLevelStatement()
+function Parser:topLevelStatement(curdir)
   local token = self:nextToken()
 
   if token.type == "module" then
@@ -127,7 +327,79 @@ function Parser:topLevelStatement()
       end
     end
 
-    return AST("functionDefinition", { path = path, arguments = args, returnType = {}, body = nil }, {}, token.source)
+    local stuff = self:nextToken()
+    local body
+
+    if stuff.type == "=" then
+      body = AST("return", nil, { Parser:expression() }, token.source)
+    end
+
+    if stuff.type == "=>" then
+      body = Parser:statement()
+    end
+
+    if stuff.type == "do" then
+      local statements = {}
+
+      while self:peekToken().type ~= "end" do
+        table.insert(statements, Parser:statement())
+      end
+
+      self:nextToken()
+
+      return AST("body", nil, statements, token.source)
+    end
+
+    assert(body ~= nil, "Unable to determine body-type of function from " .. stuff.content)
+
+    return AST("functionDefinition", { path = path, arguments = args, returnType = {} }, { body }, token.source)
+  end
+
+  if token.type == "do" then
+    local statements = {}
+
+    while self:peekToken().type ~= "end" do
+      table.insert(statements, Parser:statement())
+    end
+
+    self:nextToken()
+
+    return AST("body", nil, statements, token.source)
+  end
+
+  if token.type == "link" then
+    local path = self:nextToken()
+    assert(path.content == "string-literal", "Expected string literal")
+
+    local _, fullPath = self:resolve_comptime_paths(curdir, path.content)
+
+    return AST("linkLua", fullPath, {}, token.source)
+  end
+
+  if token.type == "import" then
+    local path = self:nextToken()
+    assert(path.content == "string-literal", "Expected string literal")
+
+    local dir, fullPath = self:resolve_comptime_paths(curdir, path.content)
+
+    local file = io.open(fullPath, "r")
+    if not file then
+      error("Unable to open file " .. fullPath)
+    end
+
+    local src = file:read("*all")
+
+    local subparser = self:newFromLexer(Lexer:new(fullPath, dir))
+
+    local code = self:parseCode(dir)
+
+    file:close()
+
+    return AST("importSolar", { dir = curdir, path = fullPath }, code, token.source)
+  end
+
+  if token.type == ";" then
+    return self:topLevelStatement(curdir)
   end
 
   return AST("invalid", token.content, {}, token.source)

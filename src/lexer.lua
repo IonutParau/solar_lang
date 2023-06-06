@@ -7,6 +7,18 @@ Lexer = {}
 
 ---@param file string
 ---@param content string
+---@return Lexer
+function Lexer:new(file, content)
+  ---@type Lexer
+  local lexer = setmetatable({}, { __index = self })
+
+  lexer:setState(file, content)
+
+  return lexer
+end
+
+---@param file string
+---@param content string
 function Lexer:setState(file, content)
   self.file = file
   self.content = content
@@ -105,6 +117,14 @@ Lexer.keywords = {
   ["then"] = "then",
   ["else"] = "else",
   ["where"] = "where",
+  ["link"] = "link",
+  ["import"] = "import",
+  ["as"] = "as",
+  ["extern"] = "extern",
+  ["loop"] = "loop",
+  ["true"] = "true",
+  ["false"] = "false",
+  ["not"] = "not",
 }
 
 function Lexer:nextToken()

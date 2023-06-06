@@ -28,12 +28,12 @@ function DumpAST(ast, indentation)
   end
 
   print(indent .. '[')
-  print(indent .. 'type: ' .. ast.type)
-  print(indent .. 'data: ' .. tostring(ast.data))
+  print(indent .. '  type: ' .. ast.type)
+  print(indent .. '  data: ' .. tostring(ast.data))
   if #ast.subnodes == 0 then
-    print(indent .. 'subnodes: none')
+    print(indent .. '  subnodes: none')
   else
-    print(indent .. 'subnodes:')
+    print(indent .. '  subnodes:')
     for i = 1, #ast.subnodes do
       local subnode = ast.subnodes[i]
       DumpAST(subnode, indentation + 4)
