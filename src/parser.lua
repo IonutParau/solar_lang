@@ -125,11 +125,7 @@ function Parser:statement()
   ---@type AST
   local expr = self:expression()
 
-  if expr.type == "FuncCall" then
-    return expr -- function call can also be statement
-  elseif expr.type == "MethodCall" then
-    return expr
-  else
+  if self:can_assign(expr) then
     if self:peekToken().type == "=" then
       -- assignment
       local source = self:nextToken().source
@@ -139,12 +135,35 @@ function Parser:statement()
       return AST("single-assign", nil, { expr, rhs }, source)
     elseif self:peekToken().type == "," then
       -- multi-assignment
+      ---@type AST[]
+      local toAssign = {}
+      ---@type AST[]
+      local values = {}
+
       --TODO: multi-assignment
       error("TODO: multi-assignment")
     else
       error("unexpected <expression>")
     end
+  elseif expr.type == "MethodCall" or expr.type == "FuncCall" then
+    return expr
+  else
+    error("unexpected <expression>")
   end
+end
+
+---@param expr AST
+---@return boolean
+function Parser:can_assign(expr)
+  if expr.type == "." then
+    return true
+  end
+
+  if expr.type == "var" then
+    return true
+  end
+
+  return false
 end
 
 ---@param op Token
@@ -155,15 +174,15 @@ function Parser:infix_bindig_power(op)
   end
 
   if op.type == "*" or op.type == "/" then
-    return true, 97, 98
+    return true, 98, 97
   end
 
   if op.type == "^" then
-    return true, 100, 101
+    return true, 101, 100
   end
 
   if op.type == ".." then
-    return true, 93, 94
+    return true, 94, 93
   end
 
   if op.type == "<" then
@@ -209,6 +228,10 @@ function Parser:prefix_binding_power(op)
   end
 
   if op.type == "not" then
+    return true, 99
+  end
+
+  if op.type == "#" then
     return true, 99
   end
 
@@ -276,7 +299,7 @@ function Parser:expression(min_bp)
         self:nextToken()
         local field = self:nextToken()
         assert(field.type == "identifier", "<identifier> expected")
-        lhs = AST("index", field.content, { lhs }, field.source)
+        lhs = AST(".", field.content, { lhs }, field.source)
       elseif self:peekToken().type == ":" then
         self:nextToken()
         local field = self:nextToken()
@@ -305,7 +328,6 @@ function Parser:expression(min_bp)
         local params = {}
         if self:peekToken().type ~= ")" then
           table.insert(params, self:expression())
-          DumpAST(params[#params])
           while true do
             if self:peekToken().type == ")" then
               self:nextToken()

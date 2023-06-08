@@ -60,7 +60,7 @@ function Emitter:compileStatement(ast)
       end
 
       return "function " ..
-      compiledName .. "(" .. table.concat(argnames, ",") .. ") " .. table.concat(body, " ") .. " end"
+          compiledName .. "(" .. table.concat(argnames, ",") .. ") " .. table.concat(body, " ") .. " end"
     end
 
     return "function " ..
@@ -126,6 +126,13 @@ function Emitter:compileStatement(ast)
     return self:compileExpression(ast.data.value) .. ":" .. ast.data.field .. "(" .. table.concat(args, ",") .. ")"
   end
 
+  if ast.type == "single-assign" then
+    local expr = ast.subnodes[1]
+    local value = ast.subnodes[2]
+
+    return self:compileExpression(expr) .. " = " .. self:compileExpression(value)
+  end
+
   error("Malformed AST! Attempt to compile " .. ast.type .. " as a statement")
 end
 
@@ -133,11 +140,40 @@ end
 ---@return string
 function Emitter:compileExpression(ast)
   if ast.type == "op_use" then
-    return self:compileExpression(ast.subnodes[1]) .. " " .. ast.data .. " " .. self:compileExpression(ast.subnodes[2])
+    return "(" ..
+        self:compileExpression(ast.subnodes[1]) ..
+        " " .. ast.data .. " " .. self:compileExpression(ast.subnodes[2]) .. ")"
   end
 
   if ast.type == "prefix-op" then
-    return ast.data .. self:compileExpression(ast.subnodes[1])
+    return "(" .. ast.data .. self:compileExpression(ast.subnodes[1]) .. ")"
+  end
+
+  if ast.type == "." then
+    local field = ast.data
+    local of = ast.subnodes[1]
+
+    return self:compileExpression(of) .. "." .. field
+  end
+
+  if ast.type == "FuncCall" then
+    local args = {}
+
+    for i = 1, #ast.subnodes do
+      args[i] = self:compileExpression(ast.subnodes[i])
+    end
+
+    return self:compileExpression(ast.data) .. "(" .. table.concat(args, ",") .. ")"
+  end
+
+  if ast.type == "MethodCall" then
+    local args = {}
+
+    for i = 1, #ast.subnodes do
+      args[i] = self:compileExpression(ast.subnodes[i])
+    end
+
+    return self:compileExpression(ast.data.value) .. ":" .. ast.data.field .. "(" .. table.concat(args, ",") .. ")"
   end
 
   if ast.type == "var" then

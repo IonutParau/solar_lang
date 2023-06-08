@@ -18,6 +18,7 @@ fun Test.Submodule.Method(a, b) = -a + b
 fun Test.Submodule.Other(arg) do
   loop
     print("Hello, world!" .. arg)
+    arg = arg .. "e"
   end
 end
 ]])
