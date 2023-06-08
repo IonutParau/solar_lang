@@ -52,6 +52,17 @@ function Emitter:compileStatement(ast)
       body[i] = self:compileStatement(ast.subnodes[i])
     end
 
+    if #ast.subnodes == 1 and ast.subnodes[1].type == "body" then
+      body = {}
+
+      for i = 1, #ast.subnodes[1].subnodes do
+        body[i] = self:compileStatement(ast.subnodes[1].subnodes[i])
+      end
+
+      return "function " ..
+      compiledName .. "(" .. table.concat(argnames, ",") .. ") " .. table.concat(body, " ") .. " end"
+    end
+
     return "function " ..
         compiledName .. "(" .. table.concat(argnames, ",") .. ") " .. table.concat(body, " ") .. " end"
   end
@@ -77,8 +88,8 @@ function Emitter:compileStatement(ast)
     ---@type string[]
     local subcode = {}
 
-    for i=1, #ast.subnodes do
-      subcode[i] = self:compileStatement(ast.subnodes)
+    for i = 1, #ast.subnodes do
+      subcode[i] = self:compileStatement(ast.subnodes[i])
     end
 
     return "while true do " .. table.concat(subcode, " ") .. " end"
@@ -88,7 +99,7 @@ function Emitter:compileStatement(ast)
     ---@type string[]
     local subcode = {}
 
-    for i=1,#ast.subnodes do
+    for i = 1, #ast.subnodes do
       subcode[i] = self:compileStatement(ast.subnodes[i])
     end
 
@@ -98,7 +109,7 @@ function Emitter:compileStatement(ast)
   if ast.type == "FuncCall" then
     local args = {}
 
-    for i=1, #ast.subnodes do
+    for i = 1, #ast.subnodes do
       args[i] = self:compileExpression(ast.subnodes[i])
     end
 
@@ -108,7 +119,7 @@ function Emitter:compileStatement(ast)
   if ast.type == "MethodCall" then
     local args = {}
 
-    for i=1, #ast.subnodes do
+    for i = 1, #ast.subnodes do
       args[i] = self:compileExpression(ast.subnodes[i])
     end
 
@@ -131,6 +142,29 @@ function Emitter:compileExpression(ast)
 
   if ast.type == "var" then
     return ast.data
+  end
+
+  if ast.type == "const-string" then
+    local str = ""
+
+    ---@type string
+    local conststr = ast.data
+
+    for i = 1, #conststr do
+      local c = conststr:sub(i, i)
+
+      if c == '\n' then
+        str = str .. '\\n'
+      elseif c == '\r' then
+        str = str .. '\\r'
+      elseif c == '\\' then
+        str = str .. '\\\\'
+      else
+        str = str .. c
+      end
+    end
+
+    return '"' .. str .. '"'
   end
 
   error("Malformed AST! Attempt to compile " .. ast.type .. " as an expression")

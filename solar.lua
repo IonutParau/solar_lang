@@ -15,9 +15,9 @@ module Test.Submodule;
 
 fun Test.Submodule.Method(a, b) = -a + b;
 
-fun Test.Submodule.Other() do
+fun Test.Submodule.Other(arg) do
   loop
-    print("Hello, world!")
+    print("Hello, world!" .. arg)
   end
 end
 ]])
@@ -26,7 +26,7 @@ Parser:grabTokenStream(Lexer)
 
 local code = Parser:parseCode("")
 
-DumpAST({type = "program", subnodes = code})
+DumpAST({ type = "program", subnodes = code })
 
 Emitter:takeASTs(code)
 print(Emitter:compile())

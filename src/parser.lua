@@ -86,11 +86,11 @@ function Parser:statement()
 
       local value = self:expression()
 
-      return AST("varDef", {name = nameToken.content, mutable = mutable}, {value}, token.source)
+      return AST("varDef", { name = nameToken.content, mutable = mutable }, { value }, token.source)
     else
       -- Uninitialized
 
-      return AST("varDef", {name = nameToken.content, mutable = mutable}, {}, token.source)
+      return AST("varDef", { name = nameToken.content, mutable = mutable }, {}, token.source)
     end
   end
 
@@ -108,13 +108,13 @@ function Parser:statement()
   if token.type == "loop" then
     ---@type AST[]
     local statements = {}
-    
+
     while self:peekToken().type ~= "end" do
       if self:peekToken().type == "eof" then
         error("end expected, got <eof>")
       end
 
-      statements[#statements+1] = self:statement()
+      statements[#statements + 1] = self:statement()
     end
     self:nextToken()
 
@@ -136,7 +136,7 @@ function Parser:statement()
 
       local rhs = self:expression()
 
-      return AST("single-assign", nil, {expr, rhs}, source)
+      return AST("single-assign", nil, { expr, rhs }, source)
     elseif self:peekToken().type == "," then
       -- multi-assignment
       --TODO: multi-assignment
@@ -276,7 +276,7 @@ function Parser:expression(min_bp)
         self:nextToken()
         local field = self:nextToken()
         assert(field.type == "identifier", "<identifier> expected")
-        lhs = AST("index", field.content, {lhs}, field.source)
+        lhs = AST("index", field.content, { lhs }, field.source)
       elseif self:peekToken().type == ":" then
         self:nextToken()
         local field = self:nextToken()
@@ -299,7 +299,7 @@ function Parser:expression(min_bp)
         else
           self:nextToken()
         end
-        lhs = AST("MethodCall", {value = lhs, field = field.content}, params, field.source)
+        lhs = AST("MethodCall", { value = lhs, field = field.content }, params, field.source)
       elseif self:peekToken().type == "(" then
         local source = self:nextToken().source
         local params = {}
@@ -313,7 +313,7 @@ function Parser:expression(min_bp)
               self:nextToken()
               table.insert(params, self:expression())
             else
-              error(", or ) expected")
+              error(", or ) expected, got internal token type: " .. self:peekToken().type)
             end
           end
         else
@@ -479,7 +479,7 @@ function Parser:topLevelStatement(curdir)
 
       self:nextToken()
 
-      return AST("body", nil, statements, token.source)
+      body = AST("body", nil, statements, token.source)
     end
 
     assert(body ~= nil, "Unable to determine body-type of function from " .. stuff.content)
