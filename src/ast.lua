@@ -2,6 +2,7 @@
 ---@field type string
 ---@field data any
 ---@field subnodes AST[]
+---@field source Source
 
 ---@param type string
 ---@param data any

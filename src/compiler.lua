@@ -95,6 +95,26 @@ function Emitter:compileStatement(ast)
     return "do " .. table.concat(subcode, " ") .. " end"
   end
 
+  if ast.type == "FuncCall" then
+    local args = {}
+
+    for i=1, #ast.subnodes do
+      args[i] = self:compileExpression(ast.subnodes[i])
+    end
+
+    return self:compileExpression(ast.data) .. "(" .. table.concat(args, ",") .. ")"
+  end
+
+  if ast.type == "MethodCall" then
+    local args = {}
+
+    for i=1, #ast.subnodes do
+      args[i] = self:compileExpression(ast.subnodes[i])
+    end
+
+    return self:compileExpression(ast.data.value) .. ":" .. ast.data.field .. "(" .. table.concat(args, ",") .. ")"
+  end
+
   error("Malformed AST! Attempt to compile " .. ast.type .. " as a statement")
 end
 

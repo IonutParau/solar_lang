@@ -26,5 +26,7 @@ Parser:grabTokenStream(Lexer)
 
 local code = Parser:parseCode("")
 
+DumpAST({type = "program", subnodes = code})
+
 Emitter:takeASTs(code)
 print(Emitter:compile())

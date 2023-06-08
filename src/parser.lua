@@ -95,7 +95,14 @@ function Parser:statement()
   end
 
   if token.type == "while" then
-    -- TODO: while
+    local condition = self:expression()
+
+    assert(self:nextToken().type == "do", "do expected")
+    local body = {}
+    while self:peekToken() ~= "end" do
+      table.insert(body, self:statement())
+    end
+    return AST("while", condition, body, token.source)
   end
 
   if token.type == "loop" then
@@ -109,24 +116,35 @@ function Parser:statement()
 
       statements[#statements+1] = self:statement()
     end
+    self:nextToken()
 
-    return AST("loop", {}, statements, token.source)
+    return AST("loop", nil, statements, token.source)
   end
+  self.idx = self.idx - 1 -- time travel
 
-  ---@type boolean
-  local success,
   ---@type AST
-  expr = pcall(self.expression, self)
+  local expr = self:expression()
 
-  if success then
-    -- is expr!
+  if expr.type == "FuncCall" then
+    return expr -- function call can also be statement
+  elseif expr.type == "MethodCall" then
+    return expr
+  else
+    if self:peekToken().type == "=" then
+      -- assignment
+      local source = self:nextToken().source
 
-    if expr.type == "FuncCall" then
-      return expr -- function call can also be statement
+      local rhs = self:expression()
+
+      return AST("single-assign", nil, {expr, rhs}, source)
+    elseif self:peekToken().type == "," then
+      -- multi-assignment
+      --TODO: multi-assignment
+      error("TODO: multi-assignment")
+    else
+      error("unexpected <expression>")
     end
   end
-
-  return AST("invalid", token, {}, token.source)
 end
 
 ---@param op Token
@@ -251,6 +269,61 @@ function Parser:expression(min_bp)
 
   if token.type == "identifier" then
     lhs = AST("var", token.content, {}, token.source)
+    -- Index, Self-Index and Function Calls
+
+    while true do
+      if self:peekToken().type == "." then
+        self:nextToken()
+        local field = self:nextToken()
+        assert(field.type == "identifier", "<identifier> expected")
+        lhs = AST("index", field.content, {lhs}, field.source)
+      elseif self:peekToken().type == ":" then
+        self:nextToken()
+        local field = self:nextToken()
+        assert(field.type == "identifier", "<identifier> expected")
+        assert(self:nextToken().type == "(", "( expected")
+        local params = {}
+        if self:peekToken().type ~= ")" then
+          table.insert(params, self:expression())
+          while true do
+            if self:peekToken().type == ")" then
+              self:nextToken()
+              break
+            elseif self:peekToken().type == "," then
+              self:nextToken()
+              table.insert(params, self:expression())
+            else
+              error(", or ) expected")
+            end
+          end
+        else
+          self:nextToken()
+        end
+        lhs = AST("MethodCall", {value = lhs, field = field.content}, params, field.source)
+      elseif self:peekToken().type == "(" then
+        local source = self:nextToken().source
+        local params = {}
+        if self:peekToken().type ~= ")" then
+          table.insert(params, self:expression())
+          while true do
+            if self:peekToken().type == ")" then
+              self:nextToken()
+              break
+            elseif self:peekToken().type == "," then
+              self:nextToken()
+              table.insert(params, self:expression())
+            else
+              error(", or ) expected")
+            end
+          end
+        else
+          self:nextToken()
+        end
+        lhs = AST("FuncCall", lhs, params, source)
+      else
+        break
+      end
+    end
   end
 
   -- Prefix Operators
@@ -263,8 +336,6 @@ function Parser:expression(min_bp)
   if not lhs then
     return AST("invalid", token, {}, token.source)
   end
-
-  -- Index, Self-Index and Function Calls
 
   -- Other Operators
 
