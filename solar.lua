@@ -1,7 +1,6 @@
 #!/usr/bin/env lua
 print("Warning: Solar is still WIP")
 
-LFS = require("lfs")
 SEP = package.config:sub(1, 1)
 
 require("src.token")
@@ -15,6 +14,12 @@ module Test;
 module Test.Submodule;
 
 fun Test.Submodule.Method(a, b) = -a + b;
+
+fun Test.Submodule.Other() do
+  loop
+    print("Hello, world!")
+  end
+end
 ]])
 
 Parser:grabTokenStream(Lexer)

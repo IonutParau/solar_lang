@@ -125,6 +125,7 @@ Lexer.keywords = {
   ["true"] = "true",
   ["false"] = "false",
   ["not"] = "not",
+  ["mut"] = "mut",
 }
 
 function Lexer:nextToken()

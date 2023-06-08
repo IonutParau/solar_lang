@@ -73,6 +73,28 @@ function Emitter:compileStatement(ast)
     return "return " .. exprCode
   end
 
+  if ast.type == "loop" then
+    ---@type string[]
+    local subcode = {}
+
+    for i=1, #ast.subnodes do
+      subcode[i] = self:compileStatement(ast.subnodes)
+    end
+
+    return "while true do " .. table.concat(subcode, " ") .. " end"
+  end
+
+  if ast.type == "body" then
+    ---@type string[]
+    local subcode = {}
+
+    for i=1,#ast.subnodes do
+      subcode[i] = self:compileStatement(ast.subnodes[i])
+    end
+
+    return "do " .. table.concat(subcode, " ") .. " end"
+  end
+
   error("Malformed AST! Attempt to compile " .. ast.type .. " as a statement")
 end
 

@@ -65,7 +65,68 @@ end
 
 ---@return AST
 function Parser:statement()
+  local token = self:nextToken()
 
+  if token.type == "local" then
+    -- Local definition
+    local mutable = false
+
+    if self:peekToken().type == "mut" then
+      self:nextToken()
+      mutable = true
+    end
+
+    local nameToken = self:nextToken()
+    assert(nameToken.type == "identifier", "<identifier> expected")
+
+    if self:peekToken().type == "=" then
+      self:nextToken()
+
+      -- Initialized
+
+      local value = self:expression()
+
+      return AST("varDef", {name = nameToken.content, mutable = mutable}, {value}, token.source)
+    else
+      -- Uninitialized
+
+      return AST("varDef", {name = nameToken.content, mutable = mutable}, {}, token.source)
+    end
+  end
+
+  if token.type == "while" then
+    -- TODO: while
+  end
+
+  if token.type == "loop" then
+    ---@type AST[]
+    local statements = {}
+    
+    while self:peekToken().type ~= "end" do
+      if self:peekToken().type == "eof" then
+        error("end expected, got <eof>")
+      end
+
+      statements[#statements+1] = self:statement()
+    end
+
+    return AST("loop", {}, statements, token.source)
+  end
+
+  ---@type boolean
+  local success,
+  ---@type AST
+  expr = pcall(self.expression, self)
+
+  if success then
+    -- is expr!
+
+    if expr.type == "FuncCall" then
+      return expr -- function call can also be statement
+    end
+  end
+
+  return AST("invalid", token, {}, token.source)
 end
 
 ---@param op Token
@@ -331,18 +392,18 @@ function Parser:topLevelStatement(curdir)
     local body
 
     if stuff.type == "=" then
-      body = AST("return", nil, { Parser:expression() }, token.source)
+      body = AST("return", nil, { self:expression() }, token.source)
     end
 
     if stuff.type == "=>" then
-      body = Parser:statement()
+      body = self:statement()
     end
 
     if stuff.type == "do" then
       local statements = {}
 
       while self:peekToken().type ~= "end" do
-        table.insert(statements, Parser:statement())
+        table.insert(statements, self:statement())
       end
 
       self:nextToken()
