@@ -31,6 +31,9 @@ function DumpAST(ast, indentation)
   print(indent .. '[')
   print(indent .. '  type: ' .. ast.type)
   print(indent .. '  data: ' .. tostring(ast.data))
+  if ast.type == "invalid" then
+    print(indent .. '  token: ' .. ast.data.type, ast.data.content)
+  end
   if #ast.subnodes == 0 then
     print(indent .. '  subnodes: none')
   else

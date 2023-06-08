@@ -305,6 +305,7 @@ function Parser:expression(min_bp)
         local params = {}
         if self:peekToken().type ~= ")" then
           table.insert(params, self:expression())
+          DumpAST(params[#params])
           while true do
             if self:peekToken().type == ")" then
               self:nextToken()

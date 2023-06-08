@@ -223,6 +223,7 @@ function Lexer:nextToken()
 
   if self:followedBy("..") then
     self:skipChar()
+    self:skipChar()
     return Token("..", "", self.source)
   end
 

@@ -10,10 +10,10 @@ require("src.parser")
 require("src.compiler")
 
 Lexer:setState("shit.solar", [[
-module Test;
-module Test.Submodule;
+module Test
+module Test.Submodule
 
-fun Test.Submodule.Method(a, b) = -a + b;
+fun Test.Submodule.Method(a, b) = -a + b
 
 fun Test.Submodule.Other(arg) do
   loop
