@@ -92,7 +92,48 @@ function Parser:type(min_bp)
   end
 
   if token.type == "interface" then
-    -- TODO: interface
+    assert(self:nextToken().type == "{")
+
+    ---@type string[]
+    local fields = {}
+    ---@type AST[]
+    local values = {}
+
+    if self:peekToken().type == "}" then
+      lhs = AST("interface-type", fields, values, token.source)
+    else
+      local field = self:nextToken()
+      assert(field.type == "identifier", "<identifier> expected")
+
+      assert(self:nextToken().type == "=", "= expected")
+
+      local value = self:type()
+
+      fields[#fields + 1] = field.content
+      values[#values + 1] = value
+
+      while true do
+        if self:peekToken().type == "}" then
+          self:nextToken()
+          break
+        elseif self:peekToken().type == "," then
+          self:nextToken()
+          local field = self:nextToken()
+          assert(field.type == "identifier", "<identifier> expected")
+
+          assert(self:nextToken().type == "=", "= expected")
+
+          local value = self:type()
+
+          fields[#fields + 1] = field.content
+          values[#values + 1] = value
+        else
+          error("} or , expected")
+        end
+      end
+
+      lhs = AST("interface-type", fields, values, token.source)
+    end
   end
 
 
