@@ -126,6 +126,8 @@ Lexer.keywords = {
   ["false"] = "false",
   ["not"] = "not",
   ["mut"] = "mut",
+  ["struct"] = "struct",
+  ["interface"] = "interface",
 }
 
 function Lexer:nextToken()
@@ -204,6 +206,12 @@ function Lexer:nextToken()
   if self:followedBy("+") then
     self:skipChar()
     return Token("+", "", self.source)
+  end
+
+  if self:followedBy("->") then
+    self:skipChar()
+    self:skipChar()
+    return Token("->", "", self.source)
   end
 
   if self:followedBy("-") then

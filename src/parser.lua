@@ -63,6 +63,74 @@ function Parser:parseCode(curdir)
   return asts
 end
 
+---@param min_bp number|nil
+---@return AST
+function Parser:type(min_bp)
+  min_bp = min_bp or 0
+
+  local token = self:nextToken()
+  local lhs = AST("invalid", nil, {}, token.source)
+
+  if token.type == "identifier" then
+    -- TODO: named types
+  end
+
+  if token.type == "[" then
+    local type = self:type()
+    assert(self:nextToken().type == "]", "] expected")
+
+    lhs = AST("list-type", nil, { type }, token.source)
+  end
+
+  if token.type == "{" then
+    local key = self:type()
+    assert(self:nextToken().type == "->", "-> expected")
+    local value = self:type()
+    assert(self:nextToken().type == "}", "} expected")
+
+    lhs = AST("table-kv-type", nil, { key, value }, token.source)
+  end
+
+  if token.type == "interface" then
+    -- TODO: interface
+  end
+
+
+  -- Prefix operators
+  local is_prefix, prefix_binding_power = self:prefix_binding_power(token)
+
+  if is_prefix then
+    lhs = AST("type_prefix_op", token.content, { self:type(prefix_binding_power) }, token.source)
+  end
+
+  assert(lhs.type ~= "invalid", "expected <identifier>, [, { or interface")
+
+  while true do
+    local op = self:peekToken()
+
+    if op.type == "eof" then
+      break
+    end
+
+    local is_infix, lbp, rbp = self:infix_bindig_power(op)
+
+    if is_infix then
+      if lbp < min_bp then
+        break
+      end
+
+      self:nextToken()
+      local rhs = self:type(rbp)
+
+      return AST("type_infix_op", op.content, { lhs, rhs }, op.source)
+    else
+      break
+    end
+  end
+
+  return lhs
+end
+
 ---@return AST
 function Parser:statement()
   local token = self:nextToken()
