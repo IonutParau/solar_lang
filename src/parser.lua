@@ -135,13 +135,47 @@ function Parser:statement()
       return AST("single-assign", nil, { expr, rhs }, source)
     elseif self:peekToken().type == "," then
       -- multi-assignment
+
+      local source = self:nextToken().source
+
+      local other = self:expression()
+      assert(self:can_assign(other), "expression is not assignable")
+
       ---@type AST[]
-      local toAssign = {}
+      local toAssign = { expr, other }
       ---@type AST[]
       local values = {}
 
-      --TODO: multi-assignment
-      error("TODO: multi-assignment")
+      local lookingAtValues = false
+
+      while true do
+        if self:peekToken().type == "," then
+          self:nextToken()
+          local next_expr = self:expression()
+
+          if lookingAtValues then
+            values[#values + 1] = next_expr
+          else
+            toAssign[#toAssign + 1] = next_expr
+          end
+        elseif self:peekToken().type == "=" and not lookingAtValues then
+          self:nextToken()
+          local next_expr = self:expression()
+
+          lookingAtValues = true
+
+          -- assuming some random goofy-ahh radiation from the sun didn't corrupt this table, this table is empty
+          -- so, this should be perfectly safe
+          values[1] = next_expr
+        else
+          if not lookingAtValues then
+            error("Expected to reach =")
+          end
+          break
+        end
+      end
+
+      return AST("multi-assign", #toAssign, { table.unpack(toAssign), table.unpack(values) }, source)
     else
       error("unexpected <expression>")
     end
