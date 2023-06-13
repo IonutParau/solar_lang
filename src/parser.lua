@@ -659,6 +659,17 @@ function Parser:topLevelStatement(curdir)
       end
     end
 
+    local returnType
+    if self:peekToken().type == "->" then
+      self:nextToken()
+      local type = self:type()
+      if type.type == "generic-def" then
+        error("Return type can not be generic")
+      end
+
+      returnType = type
+    end
+
     local stuff = self:nextToken()
     local body
 
@@ -684,7 +695,7 @@ function Parser:topLevelStatement(curdir)
 
     assert(body ~= nil, "Unable to determine body-type of function from " .. stuff.content)
 
-    return AST("functionDefinition", { path = path, arguments = args, returnType = {} }, { body }, token.source)
+    return AST("functionDefinition", { path = path, arguments = args, returnType = returnType }, { body }, token.source)
   end
 
   if token.type == "do" then
