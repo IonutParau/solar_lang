@@ -65,13 +65,16 @@ end
 
 ---@param min_bp number|nil
 ---@return AST
-function Parser:type(min_bp)
+function Parser:type(min_bp, noGenerics)
   min_bp = min_bp or 0
 
   local token = self:nextToken()
   local lhs = AST("invalid", nil, {}, token.source)
 
   if token.type == "$" then
+    if noGenerics then
+      error("Can't have generics in this type expression")
+    end
     -- GENERIC!!!!!
 
     local name = self:nextToken()
@@ -81,12 +84,12 @@ function Parser:type(min_bp)
       ---@type AST[]
       local needToBeValid = {}
 
-      needToBeValid[#needToBeValid+1] = self:type()
+      needToBeValid[#needToBeValid+1] = self:type(nil, true)
 
       while true do
         if self:peekToken().type == "&&" then
           self:nextToken()
-          needToBeValid[#needToBeValid+1] = self:type()
+          needToBeValid[#needToBeValid+1] = self:type(nil, true)
         else
           break
         end
