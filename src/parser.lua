@@ -65,11 +65,40 @@ end
 
 ---@param min_bp number|nil
 ---@return AST
-function Parser:type(min_bp)
+function Parser:type(min_bp, noGenerics)
   min_bp = min_bp or 0
 
   local token = self:nextToken()
   local lhs = AST("invalid", nil, {}, token.source)
+
+  if token.type == "$" then
+    if noGenerics then
+      error("Can't have generics in this type expression")
+    end
+    -- GENERIC!!!!!
+
+    local name = self:nextToken()
+    assert(name.type == "identifier", "<identifier> expected")
+
+    if self:peekToken().type == "where" then
+      ---@type AST[]
+      local needToBeValid = {}
+
+      needToBeValid[#needToBeValid+1] = self:type(nil, true)
+
+      while true do
+        if self:peekToken().type == "&&" then
+          self:nextToken()
+          needToBeValid[#needToBeValid+1] = self:type(nil, true)
+        else
+          break
+        end
+      end
+      return AST("generic-def", name.content, needToBeValid, token.source)
+    else
+      return AST("generic-def", name.content, {}, token.source)
+    end
+  end
 
   if token.type == "identifier" then
     -- TODO: named types
@@ -210,6 +239,7 @@ function Parser:statement()
 
     local nameToken = self:nextToken()
     assert(nameToken.type == "identifier", "<identifier> expected")
+    StyleChecker:assertGoodVariableName(nameToken)
 
     if self:peekToken().type == "=" then
       self:nextToken()
@@ -629,7 +659,6 @@ function Parser:topLevelStatement(curdir)
 
     assert(self:nextToken().type == "(", "( expected")
 
-    ---@type {name: string, definition: TypeDefinition}[]
     local args = {}
 
     while true do
@@ -640,15 +669,36 @@ function Parser:topLevelStatement(curdir)
         self:nextToken()
         local name = self:nextToken()
         assert(name.type == "identifier", "<identifier> expected")
-
-        --TODO: Add support for types once parser can parse types.
-        table.insert(args, { name = name.content, definition = {} })
+        local type
+        if self:peekToken().type == ":" then
+          self:nextToken()
+          type = self:type()
+        end
+        table.insert(args, { name = name.content, type = type })
       elseif #args == 0 and self:peekToken().type == "identifier" then
         local name = self:nextToken()
-        table.insert(args, { name = name.content, definition = {} })
+        assert(name.type == "identifier", "<identifier> expected")
+        StyleChecker:assertGoodVariableName(name)
+        local type
+        if self:peekToken().type == ":" then
+          self:nextToken()
+          type = self:type()
+        end
+        table.insert(args, { name = name.content, type = type })
       else
         error(", or ) expected")
       end
+    end
+
+    local returnType
+    if self:peekToken().type == "->" then
+      self:nextToken()
+      local type = self:type()
+      if type.type == "generic-def" then
+        error("Return type can not be generic")
+      end
+
+      returnType = type
     end
 
     local stuff = self:nextToken()
@@ -676,7 +726,7 @@ function Parser:topLevelStatement(curdir)
 
     assert(body ~= nil, "Unable to determine body-type of function from " .. stuff.content)
 
-    return AST("functionDefinition", { path = path, arguments = args, returnType = {} }, { body }, token.source)
+    return AST("functionDefinition", { path = path, arguments = args, returnType = returnType }, { body }, token.source)
   end
 
   if token.type == "do" then

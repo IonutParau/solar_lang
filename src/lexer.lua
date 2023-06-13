@@ -191,6 +191,12 @@ function Lexer:nextToken()
     return Token("$", "", self.source)
   end
 
+  if self:followedBy("&&") then
+    self:skipChar()
+    self:skipChar()
+    return Token("&&", "", self.source)
+  end
+
   if self:followedBy(">>") then
     self:skipChar()
     self:skipChar()

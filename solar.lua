@@ -8,6 +8,7 @@ require("src.ast")
 require("src.lexer")
 require("src.parser")
 require("src.compiler")
+require("src.stylecheck")
 
 Lexer:setState("shit.solar", [[
 module Test
