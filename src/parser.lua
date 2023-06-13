@@ -216,6 +216,7 @@ function Parser:statement()
 
     local nameToken = self:nextToken()
     assert(nameToken.type == "identifier", "<identifier> expected")
+    StyleChecker:assertGoodVariableName(nameToken)
 
     if self:peekToken().type == "=" then
       self:nextToken()
@@ -651,6 +652,7 @@ function Parser:topLevelStatement(curdir)
       elseif #args == 0 and self:peekToken().type == "identifier" then
         local name = self:nextToken()
         assert(name.type == "identifier", "<identifier> expected")
+        StyleChecker:assertGoodVariableName(name)
         local type
         if self:peekToken().type == ":" then
           self:nextToken()
