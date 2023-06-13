@@ -71,6 +71,31 @@ function Parser:type(min_bp)
   local token = self:nextToken()
   local lhs = AST("invalid", nil, {}, token.source)
 
+  if token.type == "$" then
+    -- GENERIC!!!!!
+
+    local name = self:nextToken()
+    assert(name.type == "identifier", "<identifier> expected")
+
+    if self:peekToken().type == "where" then
+      ---@type AST[]
+      local needToBeValid = {}
+
+      needToBeValid[#needToBeValid+1] = self:type()
+
+      while true do
+        if self:peekToken().type == "&&" then
+          self:nextToken()
+          needToBeValid[#needToBeValid+1] = self:type()
+        else
+          break
+        end
+      end
+    else
+      return AST("generic-def", name.content, {}, token.source)
+    end
+  end
+
   if token.type == "identifier" then
     -- TODO: named types
   end
