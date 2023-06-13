@@ -91,6 +91,7 @@ function Parser:type(min_bp)
           break
         end
       end
+      return AST("generic-def", name.content, needToBeValid, token.source)
     else
       return AST("generic-def", name.content, {}, token.source)
     end
