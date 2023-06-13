@@ -629,7 +629,6 @@ function Parser:topLevelStatement(curdir)
 
     assert(self:nextToken().type == "(", "( expected")
 
-    ---@type {name: string, definition: TypeDefinition}[]
     local args = {}
 
     while true do
@@ -640,12 +639,21 @@ function Parser:topLevelStatement(curdir)
         self:nextToken()
         local name = self:nextToken()
         assert(name.type == "identifier", "<identifier> expected")
-
-        --TODO: Add support for types once parser can parse types.
-        table.insert(args, { name = name.content, definition = {} })
+        local type
+        if self:peekToken().type == ":" then
+          self:nextToken()
+          type = self:type()
+        end
+        table.insert(args, { name = name.content, type = type })
       elseif #args == 0 and self:peekToken().type == "identifier" then
         local name = self:nextToken()
-        table.insert(args, { name = name.content, definition = {} })
+        assert(name.type == "identifier", "<identifier> expected")
+        local type
+        if self:peekToken().type == ":" then
+          self:nextToken()
+          type = self:type()
+        end
+        table.insert(args, { name = name.content, type = type })
       else
         error(", or ) expected")
       end
