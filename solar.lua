@@ -20,6 +20,10 @@ fun Test.Submodule.Other(arg) do
   loop
     print("Hello, world!" .. arg)
     arg = arg .. "e"
+    local mut a = "there"
+    local mut b = "hello"
+    a, b = b, a
+    print(a, b)
   end
 end
 ]])

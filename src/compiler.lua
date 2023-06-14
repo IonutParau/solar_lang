@@ -133,6 +133,47 @@ function Emitter:compileStatement(ast)
     return self:compileExpression(expr) .. " = " .. self:compileExpression(value)
   end
 
+  if ast.type == "multi-assign" then
+    ---@type integer
+    local toAssignc = ast.data
+
+    ---@type AST[]
+    local toAssign = {}
+    ---@type AST[]
+    local values = {}
+
+    for i=1, #ast.subnodes do
+      if i <= toAssignc then
+        toAssign[i] = ast.subnodes[i]
+      else
+        values[#values+1] = ast.subnodes[i]
+      end
+    end
+
+    ---@type string[]
+    local cToAssign = {}
+    ---@type string[]
+    local cValues = {}
+
+    for i=1, #toAssign do
+      cToAssign[i] = self:compileExpression(toAssign[i])
+    end
+
+    for i=1, #values do
+      cValues[i] = self:compileExpression(values[i])
+    end
+
+    return table.concat(cToAssign, ",") .. " = " .. table.concat(cValues, ",")
+  end
+
+  if ast.type == "varDef" then
+    local name = ast.data.name
+
+    local value = ast.subnodes[1]
+
+    return "local " .. name .. " = " .. self:compileExpression(value)
+  end
+
   error("Malformed AST! Attempt to compile " .. ast.type .. " as a statement")
 end
 

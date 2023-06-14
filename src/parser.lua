@@ -266,6 +266,7 @@ function Parser:statement()
 
   if self:can_assign(expr) then
     if self:peekToken().type == "=" then
+      print("assign")
       -- assignment
       local source = self:nextToken().source
 
