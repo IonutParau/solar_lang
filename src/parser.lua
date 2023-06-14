@@ -205,6 +205,29 @@ end
 function Parser:statement()
   local token = self:nextToken()
 
+  if token.type == "return" then
+    ---@type AST[]
+    local multiReturn = {}
+
+    if self:peekToken().type == "eof" or self:peekToken().type == "end" then
+      return AST("return", nil, multiReturn, token.source)
+    end
+
+    multiReturn[1] = self:expression()
+
+    while true do
+      if self:peekToken().type == "," then
+        multiReturn[#multiReturn + 1] = self:expression()
+      elseif self:peekToken().type == "eof" or self:peekToken().type == "end" then
+        break
+      else
+        error("<eof> or end expected")
+      end
+    end
+
+    return AST("return", nil, multiReturn, token.source)
+  end
+
   if token.type == "local" then
     -- Local definition
     local mutable = false
@@ -239,6 +262,9 @@ function Parser:statement()
     assert(self:nextToken().type == "do", "do expected")
     local body = {}
     while self:peekToken() ~= "end" do
+      if self:peekToken().type == "eof" then
+        assert("end expected")
+      end
       table.insert(body, self:statement())
     end
     return AST("while", condition, body, token.source)
@@ -250,7 +276,7 @@ function Parser:statement()
 
     while self:peekToken().type ~= "end" do
       if self:peekToken().type == "eof" then
-        error("end expected, got <eof>")
+        error("end expected")
       end
 
       statements[#statements + 1] = self:statement()
